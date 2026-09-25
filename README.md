@@ -48,8 +48,8 @@ The frontend selects the API base URL from the Vite mode:
 | Frontend command | Vite mode | API base URL | Backend profile |
 | --- | --- | --- | --- |
 | `npm run dev` | `dev` | `https://localhost:7234` | `dev` |
-| `npm run dev:local` | `local-api` | `http://localhost:5099` | `local` |
-| `npm run build` | `production` | `http://localhost:5099` by default | `local` |
+| `npm run dev:local` | `local-api` | `http://localhost:5099` or the current LAN hostname on port `5099` | `local` |
+| `npm run build` | `production` | current frontend hostname on port `5099` by default | `local` |
 | `npm run build:local` | `local-api` | `http://localhost:5099` | `local` |
 
 The selected value is available through `apiConfig.baseUrl` from
@@ -64,12 +64,13 @@ same hostname on `http://:5154`, allowing the same command to work on a phone
 without requiring it to trust the development certificate. The API must allow
 the frontend origin through CORS or be exposed through the same reverse proxy.
 
-The production URL defaults to `http://localhost:5099` and can be overridden
-with `VITE_API_BASE_URL` in a local `.env.production` file. Use
-`.env.example` as the starting point. If the production frontend and API are
-not running on the same machine, set the variable to an address reachable by
-the browser before running the production build. The ASP.NET `local` profile
-currently listens on localhost, so it must be configured to listen on a LAN
+The `local-api` mode and the production build use `http://localhost:5099` on
+the development machine and the current frontend hostname on port `5099` when
+opened over the LAN. The production URL can be overridden with
+`VITE_API_BASE_URL` in a local `.env.production` file. Use `.env.example` as
+the starting point. If the production frontend and API are not running on the
+same machine, set the variable to an address reachable by the browser before
+running the production build. The ASP.NET `local` profile must listen on a LAN
 address for other devices to use it.
 
 ## Requirements
