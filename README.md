@@ -14,13 +14,13 @@ features yet.
 - React + Vite + TypeScript scaffold is working.
 - The application renders a single `Homevault` heading.
 - Vite is available for development with hot reload, preferring port `5173` and
-	selecting the next available port when it is occupied.
+  selecting the next available port when it is occupied.
 - Caddy serves the production build on port `80` without a port in the URL.
 - The LAN host is `192.168.0.50`.
 - Internal DNS aliases are configured for:
-	- `homevault.home.arpa`
-	- `homevault.home.com`
-	- `homevault.home`
+  - `homevault.home.arpa`
+  - `homevault.home.com`
+  - `homevault.home`
 - HTTP access has been validated from another device on the local network.
 - HTTPS is not configured yet.
 
@@ -41,19 +41,50 @@ Browser -> Internal DNS -> 192.168.0.50:80 -> Caddy -> dist/
 The Caddy configuration is stored in [Caddyfile](Caddyfile). The Vite network
 configuration is stored in [vite.config.ts](vite.config.ts).
 
+## API configuration
+
+The frontend selects the API base URL from the Vite mode:
+
+| Frontend command | Vite mode | API base URL | Backend profile |
+| --- | --- | --- | --- |
+| `npm run dev` | `dev` | `https://localhost:7234` | `dev` |
+| `npm run dev:local` | `local-api` | `http://localhost:5099` | `local` |
+| `npm run build` | `production` | `http://localhost:5099` by default | `local` |
+| `npm run build:local` | `local-api` | `http://localhost:5099` | `local` |
+
+The selected value is available through `apiConfig.baseUrl` from
+`src/config/api.ts`. Add API clients there or import this configuration into
+the service that makes HTTP requests. The `dev` and `local-api` mappings are
+versioned with the application, so they do not depend on ignored `.env.*`
+files.
+
+Development and production call the configured API address directly. In the
+`dev` mode, localhost uses `https://localhost:7234`; a LAN hostname uses the
+same hostname on `http://:5154`, allowing the same command to work on a phone
+without requiring it to trust the development certificate. The API must allow
+the frontend origin through CORS or be exposed through the same reverse proxy.
+
+The production URL defaults to `http://localhost:5099` and can be overridden
+with `VITE_API_BASE_URL` in a local `.env.production` file. Use
+`.env.example` as the starting point. If the production frontend and API are
+not running on the same machine, set the variable to an address reachable by
+the browser before running the production build. The ASP.NET `local` profile
+currently listens on localhost, so it must be configured to listen on a LAN
+address for other devices to use it.
+
 ## Requirements
 
 - Windows host connected to the local network.
 - Node.js and npm. The project has been validated with Node.js `22.15.0` and
-	npm `10.9.2`.
+  npm `10.9.2`.
 - Caddy `2.x` for LAN publishing. Caddy can be installed with:
 
-	```powershell
-	winget install --id CaddyServer.Caddy --exact --scope user
-	```
+  ```powershell
+  winget install --id CaddyServer.Caddy --exact --scope user
+  ```
 
 - An internal DNS service, such as AdGuard Home, with access from client
-	devices on the same network.
+  devices on the same network.
 - Git for source control.
 
 The npm scripts use `scripts/caddy.ps1` to locate Caddy automatically, including
@@ -137,9 +168,9 @@ Example:
 Homevault process status
 -----------------------
 Caddy LAN: RUNNING | PID: 1234 | TCP: 80
-	URLs: http://homevault.home.arpa, http://homevault.home.com, http://homevault.home
+  URLs: http://homevault.home.arpa, http://homevault.home.com, http://homevault.home
 Vite development: RUNNING | PID: 5678 | TCP: 5173
-	URLs: http://localhost:5173, http://homevault.home.arpa:5173
+  URLs: http://localhost:5173, http://homevault.home.arpa:5173
 ```
 
 The `restart` command stops Caddy if it is running and starts it again. It is
@@ -208,6 +239,7 @@ documents in this smoke-test deployment.
 | --- | --- |
 | `npm install` | Install dependencies from `package-lock.json` |
 | `npm run dev` | Start Vite development mode, preferring port `5173` |
+| `npm run dev:local` | Start Vite using the ASP.NET `local` API profile |
 | `npm run stop:dev` | Stop the Vite development server for this project |
 | `npm run start` | Build and start Caddy in the background on port `80` |
 | `npm run stop` | Stop the Caddy server |
@@ -215,6 +247,7 @@ documents in this smoke-test deployment.
 | `npm run status` | Show Caddy and Vite process and port status |
 | `npm run serve:lan` | Run Caddy in the foreground |
 | `npm run build` | Typecheck and create the production build in `dist/` |
+| `npm run build:local` | Typecheck and build using the ASP.NET `local` API profile |
 | `npm run lint` | Run Oxlint |
 | `npm run preview` | Preview the Vite production build locally |
 

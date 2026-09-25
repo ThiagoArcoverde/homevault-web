@@ -4,13 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --mode dev",
+    "dev:local": "vite --mode local-api",
     "stop:dev": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/stop-vite.ps1",
     "start": "npm run build && powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/caddy.ps1 start --config Caddyfile --adapter caddyfile",
     "stop": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/caddy.ps1 stop",
     "restart": "npm run stop && npm run start",
     "status": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/status.ps1",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build --mode production",
+    "build:local": "tsc -b && vite build --mode local-api",
     "lint": "oxlint",
     "preview": "vite preview",
     "serve:lan": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/caddy.ps1 run --config Caddyfile --adapter caddyfile"
