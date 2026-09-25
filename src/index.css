@@ -1,11 +1,12 @@
 :root {
-  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
-  color: #17343b;
-  background: #f3efe7;
+  font-family: var(--font-ui);
+  color: var(--color-ink);
+  background: var(--color-background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
 }
 
 * {
@@ -23,25 +24,204 @@ body {
 }
 
 .homevault-page {
-  display: grid;
   min-height: 100svh;
+  padding: 32px;
+  background:
+    linear-gradient(135deg, var(--color-page-wash), var(--color-transparent) 34%),
+    var(--color-background);
+}
+
+.homevault-shell {
+  display: flex;
+  width: min(100%, 1120px);
+  min-height: 100svh;
+  margin: 0 auto;
+  flex-direction: column;
+}
+
+.homevault-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 8px 0;
+}
+
+.homevault-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--color-ink);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.homevault-brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
   place-items: center;
-  padding: 24px;
+  border-radius: 10px;
+  color: var(--color-surface);
+  background: var(--color-ink);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.homevault-access,
+.homevault-eyebrow {
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.homevault-access {
+  color: var(--color-muted);
+  letter-spacing: 0.04em;
+}
+
+.homevault-message {
+  display: grid;
+  flex: 1;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: clamp(48px, 10vw, 144px);
+  padding: 80px 0 96px;
+}
+
+.homevault-copy {
+  max-width: 600px;
+}
+
+.homevault-eyebrow {
+  margin: 0 0 20px;
 }
 
 h1 {
+  max-width: 620px;
   margin: 0;
-  color: #17343b;
-  font-size: clamp(3rem, 12vw, 7rem);
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 7vw, 6.5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
 }
 
-.homevault-status p {
+.homevault-description {
+  max-width: 460px;
+  margin: 28px 0 0;
+  color: var(--color-muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.homevault-retry {
+  min-height: 48px;
+  margin-top: 32px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--color-surface);
+  background: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.homevault-retry:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+}
+
+.homevault-retry:focus-visible,
+.homevault-brand:focus-visible {
+  outline: 3px solid var(--color-yellow);
+  outline-offset: 4px;
+}
+
+.homevault-retry:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.homevault-status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-card-surface);
+  box-shadow: 0 18px 42px var(--color-card-shadow);
+}
+
+.homevault-status-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 5px var(--color-status-ring);
+}
+
+.homevault-status-dot.checking {
+  background: var(--color-yellow);
+  box-shadow: 0 0 0 5px var(--color-checking-ring);
+}
+
+.homevault-status-label,
+.homevault-status-value {
   margin: 0;
-  color: #17343b;
-  font-size: clamp(1.25rem, 3vw, 2rem);
-  font-weight: 600;
-  text-align: center;
+}
+
+.homevault-status-label {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.homevault-status-value {
+  margin-top: 6px;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .homevault-page {
+    padding: 24px;
+  }
+
+  .homevault-shell {
+    min-height: calc(100svh - 48px);
+  }
+
+  .homevault-header {
+    align-items: flex-start;
+  }
+
+  .homevault-access {
+    max-width: 120px;
+    text-align: right;
+  }
+
+  .homevault-message {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding: 64px 0;
+  }
+
+  .homevault-status-card {
+    max-width: 360px;
+  }
 }
