@@ -1,0 +1,5 @@
+http://homevault.home.arpa, http://homevault.home.com, http://homevault.home {
+	root * dist
+	encode gzip
+	file_server
+}
