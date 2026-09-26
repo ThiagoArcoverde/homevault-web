@@ -10,12 +10,15 @@ type HomeTask = {
 }
 
 type CurrentWeather = {
+  id: string
   city: string
   state: string
   temperatureCelsius: number
   relativeHumidity: number
   condition: WeatherCondition
   isDay: boolean
+  observedAt: string
+  collectedAt: string
 }
 
 type WeatherCondition =
@@ -40,10 +43,15 @@ type WeatherConditionFamily =
   | 'snow'
   | 'thunderstorm'
 
-type WeatherState =
-  | { status: 'loading' }
-  | { status: 'available'; data: CurrentWeather }
-  | { status: 'unavailable' }
+type WeatherState = {
+  status: 'loading' | 'available' | 'refreshing' | 'unavailable'
+  data: CurrentWeather | null
+}
+
+const weatherCollectionIntervalMs = 15 * 60 * 1000
+const weatherRefreshGraceMs = 30 * 1000
+const weatherRetryDelayMs = 60 * 1000
+const weatherRequestTimeoutMs = 5 * 1000
 
 const weatherConditionLabels: Record<WeatherCondition, string> = {
   Unknown: 'Condição desconhecida',
@@ -93,6 +101,38 @@ function isWeatherCondition(value: unknown): value is WeatherCondition {
     typeof value === 'string' &&
     Object.prototype.hasOwnProperty.call(weatherConditionLabels, value)
   )
+}
+
+function isTimestamp(value: unknown): value is string {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value))
+}
+
+function isCurrentWeather(value: unknown): value is CurrentWeather {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const data = value as Record<string, unknown>
+
+  return (
+    typeof data.id === 'string' &&
+    typeof data.city === 'string' &&
+    typeof data.state === 'string' &&
+    typeof data.temperatureCelsius === 'number' &&
+    typeof data.relativeHumidity === 'number' &&
+    isWeatherCondition(data.condition) &&
+    typeof data.isDay === 'boolean' &&
+    isTimestamp(data.observedAt) &&
+    isTimestamp(data.collectedAt)
+  )
+}
+
+function formatWeatherCollectionTime(collectedAt: string): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  }).format(new Date(collectedAt))
 }
 
 function formatCurrentDate(): string {
@@ -221,7 +261,7 @@ function HomePage() {
   const [tasks, setTasks] = useState(initialTasks)
   const [taskPage, setTaskPage] = useState(0)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
-  const [weather, setWeather] = useState<WeatherState>({ status: 'loading' })
+  const [weather, setWeather] = useState<WeatherState>({ status: 'loading', data: null })
   const [currentDate, setCurrentDate] = useState(formatCurrentDate)
   const [currentGreeting, setCurrentGreeting] = useState(getCurrentGreeting)
 
@@ -243,13 +283,61 @@ function HomePage() {
   }, [])
 
   useEffect(() => {
-    const controller = new AbortController()
-    const timeoutId = window.setTimeout(() => controller.abort(), 5000)
+    let disposed = false
+    let lastCollectedAt: string | null = null
+    let refreshTimeoutId: number | undefined
+    let requestController: AbortController | null = null
+
+    function clearScheduledRefresh() {
+      if (refreshTimeoutId !== undefined) {
+        window.clearTimeout(refreshTimeoutId)
+        refreshTimeoutId = undefined
+      }
+    }
+
+    function scheduleWeatherRetry() {
+      clearScheduledRefresh()
+      refreshTimeoutId = window.setTimeout(() => {
+        void loadWeather()
+      }, weatherRetryDelayMs)
+    }
+
+    function scheduleNextWeatherLoad(collectedAt: string) {
+      clearScheduledRefresh()
+
+      const collectedAtTime = Date.parse(collectedAt)
+      const collectionChanged = lastCollectedAt !== collectedAt
+      lastCollectedAt = collectedAt
+      const nextCollectionTime = collectedAtTime + weatherCollectionIntervalMs
+      const delay = collectionChanged
+        ? Math.max(1_000, nextCollectionTime - Date.now() + weatherRefreshGraceMs)
+        : weatherRetryDelayMs
+
+      refreshTimeoutId = window.setTimeout(() => {
+        void loadWeather()
+      }, delay)
+    }
 
     async function loadWeather() {
+      requestController?.abort()
+
+      const controller = new AbortController()
+      requestController = controller
+      let timedOut = false
+      const timeoutId = window.setTimeout(() => {
+        timedOut = true
+        controller.abort()
+      }, weatherRequestTimeoutMs)
+
+      setWeather((currentWeather) => ({
+        status: currentWeather.data === null ? 'loading' : 'refreshing',
+        data: currentWeather.data,
+      }))
+
       try {
         const response = await fetch(apiConfig.currentWeatherUrl, {
-          headers: { accept: 'text/plain' },
+          cache: 'no-store',
+          headers: { accept: 'application/json' },
           signal: controller.signal,
         })
 
@@ -257,23 +345,25 @@ function HomePage() {
           throw new Error('Weather request failed')
         }
 
-        const data = (await response.json()) as CurrentWeather
+        const data: unknown = await response.json()
 
-        if (
-          typeof data.city !== 'string' ||
-          typeof data.state !== 'string' ||
-          typeof data.temperatureCelsius !== 'number' ||
-          typeof data.relativeHumidity !== 'number' ||
-          !isWeatherCondition(data.condition) ||
-          typeof data.isDay !== 'boolean'
-        ) {
+        if (!isCurrentWeather(data)) {
           throw new Error('Weather response is invalid')
         }
 
+        if (disposed) {
+          return
+        }
+
         setWeather({ status: 'available', data })
+        scheduleNextWeatherLoad(data.collectedAt)
       } catch {
-        if (!controller.signal.aborted) {
-          setWeather({ status: 'unavailable' })
+        if (!disposed && (timedOut || !controller.signal.aborted)) {
+          setWeather((currentWeather) => ({
+            status: 'unavailable',
+            data: currentWeather.data,
+          }))
+          scheduleWeatherRetry()
         }
       } finally {
         window.clearTimeout(timeoutId)
@@ -283,8 +373,9 @@ function HomePage() {
     void loadWeather()
 
     return () => {
-      window.clearTimeout(timeoutId)
-      controller.abort()
+      disposed = true
+      clearScheduledRefresh()
+      requestController?.abort()
     }
   }, [])
 
@@ -310,6 +401,9 @@ function HomePage() {
       setCompletingTaskId(null)
     }
   }
+
+  const weatherData = weather.data
+  const hasWeatherData = weatherData !== null
 
   return (
     <main className="homevault-page homevault-home">
@@ -340,40 +434,45 @@ function HomePage() {
               className="homevault-weather-inline"
               aria-label="Condições meteorológicas atuais"
               aria-live="polite"
+              aria-busy={weather.status === 'loading' || weather.status === 'refreshing'}
             >
               <div className="homevault-weather-visual">
                 <span
-                  className={`homevault-weather-marker weather-marker-${weather.status === 'available' ? weatherConditionFamilies[weather.data.condition] : 'unknown'}`}
+                  className={`homevault-weather-marker weather-marker-${hasWeatherData ? weatherConditionFamilies[weatherData.condition] : 'unknown'}`}
                   aria-hidden="true"
                 >
-                  {weather.status === 'available'
-                    ? getWeatherMarker(weather.data.condition, weather.data.isDay)
+                  {hasWeatherData
+                    ? getWeatherMarker(weatherData.condition, weatherData.isDay)
                     : weather.status === 'loading'
                       ? '…'
                       : '—'}
                 </span>
-                {weather.status === 'available' && (
+                {hasWeatherData && (
                   <span className="homevault-weather-condition">
-                    {weatherConditionLabels[weather.data.condition]}
+                    {weatherConditionLabels[weatherData.condition]}
                   </span>
                 )}
               </div>
               <div className="homevault-weather-copy">
                 <strong>
-                  {weather.status === 'loading'
-                    ? 'Consultando...'
-                    : weather.status === 'available'
-                      ? `${weather.data.temperatureCelsius.toLocaleString('pt-BR', {
+                  {hasWeatherData
+                    ? `${weatherData.temperatureCelsius.toLocaleString('pt-BR', {
                           minimumFractionDigits: 1,
                           maximumFractionDigits: 1,
                         })}°C`
+                    : weather.status === 'loading'
+                      ? 'Consultando...'
                       : '--'}
                 </strong>
                 <div className="homevault-weather-details">
-                  {weather.status === 'available' ? (
-                    <span>{weather.data.city}, {weather.data.state} - Umidade {weather.data.relativeHumidity.toLocaleString('pt-BR', {
+                  {hasWeatherData ? (
+                    <span>
+                      {weatherData.city}, {weatherData.state} - Umidade {weatherData.relativeHumidity.toLocaleString('pt-BR', {
                         maximumFractionDigits: 0,
-                      })}%</span>
+                      })}% · Coletado às {formatWeatherCollectionTime(weatherData.collectedAt)}
+                      {weather.status === 'refreshing' ? ' · Atualizando' : ''}
+                      {weather.status === 'unavailable' ? ' · Atualização indisponível' : ''}
+                    </span>
                   ) : (
                     <span>
                       {weather.status === 'loading'
