@@ -14,12 +14,115 @@ type CurrentWeather = {
   state: string
   temperatureCelsius: number
   relativeHumidity: number
+  condition: WeatherCondition
+  isDay: boolean
 }
+
+type WeatherCondition =
+  | 'Unknown'
+  | 'Clear'
+  | 'PartlyCloudy'
+  | 'Cloudy'
+  | 'Fog'
+  | 'Drizzle'
+  | 'Rain'
+  | 'Showers'
+  | 'Snow'
+  | 'Thunderstorm'
+
+type WeatherConditionFamily =
+  | 'unknown'
+  | 'clear'
+  | 'partlyCloudy'
+  | 'cloudy'
+  | 'fog'
+  | 'rain'
+  | 'snow'
+  | 'thunderstorm'
 
 type WeatherState =
   | { status: 'loading' }
   | { status: 'available'; data: CurrentWeather }
   | { status: 'unavailable' }
+
+const weatherConditionLabels: Record<WeatherCondition, string> = {
+  Unknown: 'Condição desconhecida',
+  Clear: 'Céu limpo',
+  PartlyCloudy: 'Parcialmente nublado',
+  Cloudy: 'Nublado',
+  Fog: 'Neblina',
+  Drizzle: 'Garoa',
+  Rain: 'Chuvoso',
+  Showers: 'Pancadas de chuva',
+  Snow: 'Nevando',
+  Thunderstorm: 'Tempestade',
+}
+
+const weatherConditionFamilies: Record<WeatherCondition, WeatherConditionFamily> = {
+  Unknown: 'unknown',
+  Clear: 'clear',
+  PartlyCloudy: 'partlyCloudy',
+  Cloudy: 'cloudy',
+  Fog: 'fog',
+  Drizzle: 'rain',
+  Rain: 'rain',
+  Showers: 'rain',
+  Snow: 'snow',
+  Thunderstorm: 'thunderstorm',
+}
+
+const weatherConditionMarkers: Record<WeatherConditionFamily, { day: string; night: string }> = {
+  unknown: { day: '?', night: '?' },
+  clear: { day: '☀️', night: '🌕' },
+  partlyCloudy: { day: '🌤️', night: '🌥️' },
+  cloudy: { day: '☁️', night: '☁️' },
+  fog: { day: '💨', night: '💨' },
+  rain: { day: '🌧️', night: '🌧️' },
+  snow: { day: '❄️', night: '❄️' },
+  thunderstorm: { day: '⛈️', night: '⛈️' },
+}
+
+function getWeatherMarker(condition: WeatherCondition, isDay: boolean): string {
+  const family = weatherConditionFamilies[condition]
+  const markers = weatherConditionMarkers[family]
+  return isDay ? markers.day : markers.night
+}
+
+function isWeatherCondition(value: unknown): value is WeatherCondition {
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(weatherConditionLabels, value)
+  )
+}
+
+function formatCurrentDate(): string {
+  const formattedDate = new Intl.DateTimeFormat('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'America/Sao_Paulo',
+    weekday: 'long',
+  }).format(new Date())
+
+  return formattedDate.charAt(0).toUpperCase() + formattedDate.slice(1)
+}
+
+function getCurrentGreeting(): string {
+  const hour = Number(new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    hour12: false,
+    timeZone: 'America/Sao_Paulo',
+  }).format(new Date()))
+
+  if (hour >= 5 && hour < 12) {
+    return 'Bom dia'
+  }
+
+  if (hour >= 12 && hour < 18) {
+    return 'Boa tarde'
+  }
+
+  return 'Boa noite'
+}
 
 const initialTasks: HomeTask[] = [
   {
@@ -119,6 +222,8 @@ function HomePage() {
   const [taskPage, setTaskPage] = useState(0)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherState>({ status: 'loading' })
+  const [currentDate, setCurrentDate] = useState(formatCurrentDate)
+  const [currentGreeting, setCurrentGreeting] = useState(getCurrentGreeting)
 
   const tasksPerPage = 6
   const completedTasks = tasks.filter((task) => task.done).length
@@ -127,6 +232,15 @@ function HomePage() {
   const taskStart = taskPage * tasksPerPage + 1
   const taskEnd = Math.min(taskStart + tasksPerPage - 1, tasks.length)
   const visibleTasks = tasks.slice(taskPage * tasksPerPage, taskEnd)
+
+  useEffect(() => {
+    const dateIntervalId = window.setInterval(() => {
+      setCurrentDate(formatCurrentDate())
+      setCurrentGreeting(getCurrentGreeting())
+    }, 60_000)
+
+    return () => window.clearInterval(dateIntervalId)
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -149,7 +263,9 @@ function HomePage() {
           typeof data.city !== 'string' ||
           typeof data.state !== 'string' ||
           typeof data.temperatureCelsius !== 'number' ||
-          typeof data.relativeHumidity !== 'number'
+          typeof data.relativeHumidity !== 'number' ||
+          !isWeatherCondition(data.condition) ||
+          typeof data.isDay !== 'boolean'
         ) {
           throw new Error('Weather response is invalid')
         }
@@ -218,14 +334,31 @@ function HomePage() {
 
         <section className="homevault-home-hero" id="home" aria-labelledby="home-title">
           <div className="homevault-home-intro">
-            <p className="homevault-eyebrow">Sexta-feira, 25 de setembro</p>
-            <h1 id="home-title">Bom dia, a casa está em ordem.</h1>
-            <div className="homevault-weather-inline" aria-live="polite">
-              <span className="homevault-weather-marker" aria-hidden="true">
-                °
-              </span>
+            <p className="homevault-eyebrow">{currentDate}</p>
+            <h1 id="home-title">{currentGreeting}, a casa está em ordem.</h1>
+            <div
+              className="homevault-weather-inline"
+              aria-label="Condições meteorológicas atuais"
+              aria-live="polite"
+            >
+              <div className="homevault-weather-visual">
+                <span
+                  className={`homevault-weather-marker weather-marker-${weather.status === 'available' ? weatherConditionFamilies[weather.data.condition] : 'unknown'}`}
+                  aria-hidden="true"
+                >
+                  {weather.status === 'available'
+                    ? getWeatherMarker(weather.data.condition, weather.data.isDay)
+                    : weather.status === 'loading'
+                      ? '…'
+                      : '—'}
+                </span>
+                {weather.status === 'available' && (
+                  <span className="homevault-weather-condition">
+                    {weatherConditionLabels[weather.data.condition]}
+                  </span>
+                )}
+              </div>
               <div className="homevault-weather-copy">
-                <p>Clima agora</p>
                 <strong>
                   {weather.status === 'loading'
                     ? 'Consultando...'
@@ -236,15 +369,19 @@ function HomePage() {
                         })}°C`
                       : '--'}
                 </strong>
-                <span>
-                  {weather.status === 'available'
-                    ? `${weather.data.city}, ${weather.data.state} · Umidade ${weather.data.relativeHumidity.toLocaleString('pt-BR', {
+                <div className="homevault-weather-details">
+                  {weather.status === 'available' ? (
+                    <span>{weather.data.city}, {weather.data.state} - Umidade {weather.data.relativeHumidity.toLocaleString('pt-BR', {
                         maximumFractionDigits: 0,
-                      })}%`
-                    : weather.status === 'loading'
-                      ? 'Buscando a temperatura da casa'
-                      : 'Temperatura indisponível agora'}
-                </span>
+                      })}%</span>
+                  ) : (
+                    <span>
+                      {weather.status === 'loading'
+                        ? 'Buscando a temperatura da casa'
+                        : 'Temperatura indisponível agora'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
