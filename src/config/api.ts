@@ -15,4 +15,5 @@ if (!apiBaseUrl) {
 export const apiConfig = {
   baseUrl: apiBaseUrl.replace(/\/$/, ''),
   healthUrl: `${apiBaseUrl.replace(/\/$/, '')}/health`,
+  currentWeatherUrl: `${apiBaseUrl.replace(/\/$/, '')}/api/v1/weather/current`,
 } as const

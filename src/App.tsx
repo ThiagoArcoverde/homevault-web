@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiConfig } from './config/api'
+import HomePage from './pages/HomePage'
 
 type HealthStatus = 'checking' | 'available' | 'unavailable'
 
@@ -45,11 +46,7 @@ function App() {
   }, [healthCheckId])
 
   if (healthStatus === 'available') {
-    return (
-      <main className="homevault-page">
-        <h1>Homevault</h1>
-      </main>
-    )
+    return <HomePage />
   }
 
   return (
