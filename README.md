@@ -1,18 +1,27 @@
 # Homevault Web
 
-Homevault Web is the initial React frontend for a self-hosted Homevault
-installation on a private local network. The current release is an operational
-smoke test: it renders a single Homevault page and verifies the local DNS,
-network, build and static publishing path.
+Homevault Web is the React frontend for a self-hosted household dashboard on a
+private local network. It provides a home overview with household tasks and
+current weather, and uses a separately hosted API for service health and
+weather data.
 
-The project is intentionally small at this stage. It does not contain a
-backend, authentication, database, file storage or user-facing domain
-features yet.
+This repository contains the frontend and LAN publishing configuration; it
+does not contain the API implementation. Household tasks are currently sample
+data held only in browser memory. Authentication, task persistence and file
+storage are not implemented.
 
 ## Current status
 
-- React + Vite + TypeScript scaffold is working.
-- The application renders a single `Homevault` heading.
+- React + Vite + TypeScript frontend is working.
+- The home dashboard shows a date-sensitive greeting, household task progress,
+  a paginated task list and current weather when the API is available.
+- The app checks the API `/health` endpoint before showing the dashboard. If
+  the check fails, it shows a service-unavailable view with a retry action.
+- Weather is loaded from `/api/v1/weather/current`; the widget keeps the last
+  reading while refreshing and reports when updates are unavailable.
+- Task completion can be toggled in the current session. Tasks, household
+  details and assignees are sample frontend data and are not saved after a page
+  reload.
 - Vite is available for development with hot reload, preferring port `5173` and
   selecting the next available port when it is occupied.
 - Caddy serves the production build on port `80` without a port in the URL.
@@ -32,14 +41,18 @@ Development uses Vite directly:
 Browser -> Vite :5173 -> React source
 ```
 
-LAN publishing uses a static production build:
+LAN publishing serves the static production build. The browser then calls the
+API directly at the URL selected for the current Vite mode:
 
 ```text
 Browser -> Internal DNS -> 192.168.0.50:80 -> Caddy -> dist/
+Browser -> API (typically the same host on port 5099 in production)
 ```
 
 The Caddy configuration is stored in [Caddyfile](Caddyfile). The Vite network
-configuration is stored in [vite.config.ts](vite.config.ts).
+configuration is stored in [vite.config.ts](vite.config.ts). Starting Caddy
+serves the frontend; the API must be running separately and allow the frontend
+origin through CORS, or be exposed through the same reverse proxy.
 
 ## API configuration
 
@@ -53,10 +66,10 @@ The frontend selects the API base URL from the Vite mode:
 | `npm run build:local` | `local-api` | `http://localhost:5099` | `local` |
 
 The selected value is available through `apiConfig.baseUrl` from
-`src/config/api.ts`. Add API clients there or import this configuration into
-the service that makes HTTP requests. The `dev` and `local-api` mappings are
-versioned with the application, so they do not depend on ignored `.env.*`
-files.
+`src/config/api.ts`. The current frontend uses `apiConfig.healthUrl` for the
+startup health check and `apiConfig.currentWeatherUrl` for the weather widget.
+The `dev` and `local-api` mappings are versioned with the application, so they
+do not depend on ignored `.env.*` files.
 
 Development and production call the configured API address directly. In the
 `dev` mode, localhost uses `https://localhost:7234`; a LAN hostname uses the
@@ -231,8 +244,9 @@ normally issue certificates for these internal hostnames. The next HTTPS step
 requires an internal certificate authority or another certificate strategy
 trusted by every client device on the network.
 
-Until then, the LAN URLs use HTTP. Do not place sensitive data or real user
-documents in this smoke-test deployment.
+Until then, the LAN URLs use HTTP. Do not use this deployment for sensitive
+information or real user documents; the frontend also has no authentication or
+document storage.
 
 ## Available commands
 
@@ -334,8 +348,13 @@ development server, use `npm run stop:dev`.
 ├── Caddyfile              # LAN static server configuration
 ├── public/                # Public static assets
 ├── src/
-│   ├── App.tsx            # Initial Homevault page
-│   ├── index.css          # Global styles
+│   ├── App.tsx            # API health check and service-unavailable view
+│   ├── config/
+│   │   ├── api.ts         # API URLs selected by Vite mode
+│   │   └── themes.ts      # Theme tokens and application
+│   ├── pages/
+│   │   └── HomePage.tsx   # Household dashboard, tasks and weather
+│   ├── index.css          # Global and page styles
 │   └── main.tsx           # React entry point
 ├── index.html             # HTML entry point
 ├── package.json           # Scripts and dependencies
@@ -348,15 +367,17 @@ development server, use `npm run stop:dev`.
 └── README.md              # Project documentation
 ```
 
-## Out of scope for this milestone
+## Not implemented yet
 
-- Backend API.
-- Database or persistent storage.
+- The backend API implementation in this repository. The frontend expects the
+  separately hosted API described above.
+- Persistent storage for household tasks; current task data is sample state in
+  the browser.
 - Authentication and authorization.
 - File uploads and document handling.
 - HTTPS and internal certificate distribution.
 - Automated tests beyond lint, typecheck and production build.
 - CI/CD and automatic Windows service installation.
 
-These should be designed and approved before expanding the initial smoke test
-into the Homevault product.
+These are potential next steps; sensitive household data should wait until
+authentication, authorization and HTTPS are in place.
