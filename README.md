@@ -2,13 +2,12 @@
 
 Homevault Web is the React frontend for a self-hosted household dashboard on a
 private local network. It provides a home overview with household tasks and
-current weather, and uses a separately hosted API for service health and
-weather data.
+current weather, plus a persistent shopping list powered by a separately
+hosted API.
 
 This repository contains the frontend and LAN publishing configuration; it
-does not contain the API implementation. Household tasks are currently sample
-data held only in browser memory. Authentication, task persistence and file
-storage are not implemented.
+does not contain the API implementation. Authentication, persistent task
+storage and file uploads are not implemented.
 
 ## Current status
 
@@ -19,6 +18,13 @@ storage are not implemented.
   the check fails, it shows a service-unavailable view with a retry action.
 - Weather is loaded from `/api/v1/weather/current`; the widget keeps the last
   reading while refreshing and reports when updates are unavailable.
+- The shopping-list screen loads categories and paginated items from the API;
+  create, purchase status, individual removal and clear-purchased actions are
+  persisted there. Search and category filters are server-side.
+- CSV, PDF and Markdown downloads are generated in the browser from the full
+  API export snapshot, independent of the visible page or filters.
+- Shopping categories are managed by the API; the frontend does not duplicate
+  the category catalog.
 - Task completion can be toggled in the current session. Tasks, household
   details and assignees are sample frontend data and are not saved after a page
   reload.
@@ -66,8 +72,9 @@ The frontend selects the API base URL from the Vite mode:
 | `npm run build:local` | `local-api` | `http://localhost:5099` | `local` |
 
 The selected value is available through `apiConfig.baseUrl` from
-`src/config/api.ts`. The current frontend uses `apiConfig.healthUrl` for the
-startup health check and `apiConfig.currentWeatherUrl` for the weather widget.
+`src/config/api.ts`. The frontend uses `apiConfig.healthUrl` for the startup
+health check, `apiConfig.currentWeatherUrl` for the weather widget, and the
+versioned shopping-list routes for categories, items and export snapshots.
 The `dev` and `local-api` mappings are versioned with the application, so they
 do not depend on ignored `.env.*` files.
 
@@ -85,6 +92,29 @@ the starting point. If the production frontend and API are not running on the
 same machine, set the variable to an address reachable by the browser before
 running the production build. The ASP.NET `local` profile must listen on a LAN
 address for other devices to use it.
+
+## Shopping list API
+
+All shopping-list routes use the base path `/api/v1/shopping-list` relative to
+`apiConfig.baseUrl`:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/categories` | Load category IDs, names and display order. |
+| `GET` | `/items` | Load a page; accepts `search`, `categoryId`, `page` and `pageSize`. |
+| `GET` | `/items/{id}` | Load one item. |
+| `POST` | `/items` | Create an item with `name`, `quantity` and `categoryId`. |
+| `PATCH` | `/items/{id}` | Partially update `name`, `quantity`, `categoryId` or `purchased`. |
+| `DELETE` | `/items/{id}` | Delete one item. |
+| `DELETE` | `/items?purchased=true` | Delete all purchased items. |
+| `GET` | `/export-data` | Load the complete, unfiltered export snapshot. |
+
+The list UI requests four items per page. A page response includes `items`,
+`page`, `pageSize`, `totalMatchingItems`, `totalPages` and a global `summary`
+with `totalItems`, `purchasedItems` and `pendingItems`. Search and category
+filters affect the matching count, not the global summary. Export data includes
+the entire list and summary; CSV, PDF and Markdown files are generated in the
+browser. The API must allow the frontend origin through CORS.
 
 ## Requirements
 
@@ -353,7 +383,8 @@ development server, use `npm run stop:dev`.
 │   │   ├── api.ts         # API URLs selected by Vite mode
 │   │   └── themes.ts      # Theme tokens and application
 │   ├── pages/
-│   │   └── HomePage.tsx   # Household dashboard, tasks and weather
+│   │   ├── HomePage.tsx   # Household dashboard, tasks and weather
+│   │   └── ShoppingListPage.tsx # API-backed shopping list and exports
 │   ├── index.css          # Global and page styles
 │   └── main.tsx           # React entry point
 ├── index.html             # HTML entry point

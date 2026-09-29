@@ -415,15 +415,12 @@ function HomePage() {
             </span>
             <span>Homevault</span>
           </a>
-          <div className="homevault-household" aria-label="Casa principal, quatro moradores">
-            <span className="homevault-household-avatar" aria-hidden="true">
-              CP
-            </span>
-            <span>
-              <strong>Casa principal</strong>
-              <small>4 moradores</small>
-            </span>
-          </div>
+          <nav className="homevault-primary-nav" aria-label="Navegação principal">
+            <a className="homevault-nav-link homevault-nav-link-primary" href="#/compras">
+              <span>Abrir lista de compras</span>
+              <span aria-hidden="true">→</span>
+            </a>
+          </nav>
         </header>
 
         <section className="homevault-home-hero" id="home" aria-labelledby="home-title">

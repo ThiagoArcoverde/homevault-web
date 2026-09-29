@@ -1,12 +1,28 @@
 import { useEffect, useState } from 'react'
 import { apiConfig } from './config/api'
 import HomePage from './pages/HomePage'
+import ShoppingListPage from './pages/ShoppingListPage'
 
 type HealthStatus = 'checking' | 'available' | 'unavailable'
+type AppRoute = 'home' | 'shopping'
+
+function getAppRoute(): AppRoute {
+  return window.location.hash === '#/compras' ? 'shopping' : 'home'
+}
 
 function App() {
   const [healthStatus, setHealthStatus] = useState<HealthStatus>('checking')
   const [healthCheckId, setHealthCheckId] = useState(0)
+  const [route, setRoute] = useState<AppRoute>(getAppRoute)
+
+  useEffect(() => {
+    function syncRoute() {
+      setRoute(getAppRoute())
+    }
+
+    window.addEventListener('hashchange', syncRoute)
+    return () => window.removeEventListener('hashchange', syncRoute)
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -44,6 +60,10 @@ function App() {
       controller.abort()
     }
   }, [healthCheckId])
+
+  if (route === 'shopping') {
+    return <ShoppingListPage />
+  }
 
   if (healthStatus === 'available') {
     return <HomePage />
