@@ -40,10 +40,23 @@ type PageTransition = {
 
 type ExportValue = string | number
 
-function getExportRows(items: ShoppingItem[]): ExportValue[][] {
+function getExportRows(items: ShoppingItem[], categories: ApiShoppingCategory[]): ExportValue[][] {
+  const categoryOrder = new Map(categories.map((category) => [category.id, category.sortOrder] as const))
+  const orderedItems = [...items].sort((firstItem, secondItem) => {
+    const firstCategoryOrder = categoryOrder.get(firstItem.categoryId ?? '') ?? Number.MAX_SAFE_INTEGER
+    const secondCategoryOrder = categoryOrder.get(secondItem.categoryId ?? '') ?? Number.MAX_SAFE_INTEGER
+
+    if (firstCategoryOrder !== secondCategoryOrder) {
+      return firstCategoryOrder - secondCategoryOrder
+    }
+
+    const categoryComparison = firstItem.category.localeCompare(secondItem.category, 'pt-BR', { sensitivity: 'base' })
+    return categoryComparison || firstItem.name.localeCompare(secondItem.name, 'pt-BR', { sensitivity: 'base' })
+  })
+
   return [
     ['Produto', 'Quantidade', 'Categoria', 'Status'],
-    ...items.map((item) => [
+    ...orderedItems.map((item) => [
       item.name,
       item.quantity,
       item.category,
@@ -447,7 +460,7 @@ function ShoppingListPage() {
   async function exportItems() {
     const snapshot = await getShoppingExportData()
     const exportItems = snapshot.items.map(mapApiItem)
-    const [header, ...itemRows] = getExportRows(exportItems)
+    const [header, ...itemRows] = getExportRows(exportItems, categories)
     const exportedAt = formatExportDate(new Date())
     const rows = [
       ['Homevault | Lista de compras', '', '', ''],
@@ -465,7 +478,7 @@ function ShoppingListPage() {
   async function exportItemsAsMarkdown() {
     const snapshot = await getShoppingExportData()
     const exportItems = snapshot.items.map(mapApiItem)
-    const [header, ...rows] = getExportRows(exportItems)
+    const [header, ...rows] = getExportRows(exportItems, categories)
     const exportedAt = formatExportDate(new Date())
     const markdown = [
       '# Homevault',
@@ -491,7 +504,7 @@ function ShoppingListPage() {
       import('jspdf-autotable'),
     ])
     const exportItems = snapshot.items.map(mapApiItem)
-    const [header, ...itemRows] = getExportRows(exportItems)
+    const [header, ...itemRows] = getExportRows(exportItems, categories)
     const exportedAt = formatExportDate(new Date())
     const pdf = new jsPDF()
 
