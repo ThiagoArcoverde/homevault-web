@@ -1,5 +1,7 @@
+import { Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getTasks, updateTask, type HomeTask } from '../api/tasks'
+import { createTask, deleteTask, getTasks, updateTask, type HomeTask } from '../api/tasks'
+import { TaskDeleteDialog, TaskFormDialog, type TaskEditor, type TaskFormValues } from '../components/TaskDialogs'
 import { apiConfig } from '../config/api'
 
 type CurrentWeather = {
@@ -197,6 +199,8 @@ function HomePage() {
   const [taskError, setTaskError] = useState<string | null>(null)
   const [tasksReloadKey, setTasksReloadKey] = useState(0)
   const [taskPage, setTaskPage] = useState(0)
+  const [taskEditor, setTaskEditor] = useState<TaskEditor | null>(null)
+  const [taskPendingDeletion, setTaskPendingDeletion] = useState<HomeTask | null>(null)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherState>({ status: 'loading', data: null })
   const [currentDate, setCurrentDate] = useState(formatCurrentDate)
@@ -229,6 +233,45 @@ function HomePage() {
 
     return () => controller.abort()
   }, [tasksReloadKey])
+
+  useEffect(() => {
+    let midnightTimeoutId: number | undefined
+
+    // Daily tasks reset at 00:00; refetch so an open page reflects it.
+    function refreshTasks() {
+      getTasks()
+        .then((response) => {
+          setTasks(response.items)
+          setTasksStatus('ready')
+          setTaskError(null)
+        })
+        .catch(() => undefined)
+    }
+
+    function scheduleMidnightRefresh() {
+      const now = new Date()
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5)
+
+      midnightTimeoutId = window.setTimeout(() => {
+        refreshTasks()
+        scheduleMidnightRefresh()
+      }, nextMidnight.getTime() - now.getTime())
+    }
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === 'visible') {
+        refreshTasks()
+      }
+    }
+
+    scheduleMidnightRefresh()
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      window.clearTimeout(midnightTimeoutId)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [])
 
   useEffect(() => {
     const dateIntervalId = window.setInterval(() => {
@@ -340,6 +383,31 @@ function HomePage() {
     setTasksStatus('loading')
     setTaskError(null)
     setTasksReloadKey((key) => key + 1)
+  }
+
+  async function saveTask(values: TaskFormValues) {
+    if (taskEditor === 'new') {
+      const created = await createTask(values)
+
+      setTasks((currentTasks) => [...currentTasks, created])
+      setTaskPage(Math.floor(tasks.length / tasksPerPage))
+    } else if (taskEditor) {
+      const updated = await updateTask(taskEditor.id, values)
+
+      setTasks((currentTasks) =>
+        currentTasks.map((currentTask) => (currentTask.id === updated.id ? updated : currentTask)),
+      )
+    }
+
+    setTaskEditor(null)
+  }
+
+  async function removeTask(task: HomeTask) {
+    await deleteTask(task.id)
+
+    setTasks((currentTasks) => currentTasks.filter((currentTask) => currentTask.id !== task.id))
+    setTaskPage((currentPage) => Math.min(currentPage, Math.max(0, Math.ceil((tasks.length - 1) / tasksPerPage) - 1)))
+    setTaskPendingDeletion(null)
   }
 
   function toggleTask(taskId: string) {
@@ -485,6 +553,15 @@ function HomePage() {
                 <h2 id="tasks-title">Afazeres pendentes</h2>
               </div>
               <div className="homevault-task-controls">
+                <button
+                  className="homevault-task-add"
+                  disabled={tasksStatus !== 'ready'}
+                  onClick={() => setTaskEditor('new')}
+                  type="button"
+                >
+                  <Plus aria-hidden="true" size={16} />
+                  <span>Novo afazer</span>
+                </button>
                 <span className="homevault-panel-count">
                   {taskStart}-{taskEnd} de {tasks.length}
                 </span>
@@ -545,25 +622,61 @@ function HomePage() {
             )}
             <div className="homevault-task-list" key={taskPage}>
               {visibleTasks.map((task) => (
-                <label
+                <div
                   className={`homevault-task ${task.done ? 'is-done' : ''} ${completingTaskId === task.id ? 'is-completing' : ''}`}
                   key={task.id}
                 >
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={() => toggleTask(task.id)}
-                  />
-                  <span className="homevault-task-copy">
-                    <strong>{task.title}</strong>
-                    <small>{task.meta}</small>
-                  </span>
-                  <span className="homevault-task-assignee">{task.assignee}</span>
-                </label>
+                  <label className="homevault-task-toggle">
+                    <input
+                      type="checkbox"
+                      checked={task.done}
+                      onChange={() => toggleTask(task.id)}
+                    />
+                    <span className="homevault-task-copy">
+                      <strong>{task.title}</strong>
+                      <small>
+                        {task.meta}
+                        {task.repeatsDaily && (
+                          <span className="homevault-task-repeat">
+                            <Repeat aria-hidden="true" size={12} />
+                            Todos os dias
+                          </span>
+                        )}
+                      </small>
+                    </span>
+                    <span className="homevault-task-assignee">{task.assignee}</span>
+                  </label>
+                  <div className="homevault-task-actions">
+                    <button
+                      aria-label={`Editar ${task.title}`}
+                      className="homevault-task-action"
+                      onClick={() => setTaskEditor(task)}
+                      title="Editar"
+                      type="button"
+                    >
+                      <Pencil aria-hidden="true" size={15} />
+                    </button>
+                    <button
+                      aria-label={`Excluir ${task.title}`}
+                      className="homevault-task-action is-danger"
+                      onClick={() => setTaskPendingDeletion(task)}
+                      title="Excluir"
+                      type="button"
+                    >
+                      <Trash2 aria-hidden="true" size={15} />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </section>
         </div>
+        <TaskFormDialog editor={taskEditor} onClose={() => setTaskEditor(null)} onSubmit={saveTask} />
+        <TaskDeleteDialog
+          onClose={() => setTaskPendingDeletion(null)}
+          onConfirm={removeTask}
+          task={taskPendingDeletion}
+        />
       </div>
     </main>
   )

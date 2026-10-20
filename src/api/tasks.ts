@@ -8,12 +8,14 @@ export type HomeTask = {
   meta: string
   assignee: string
   done: boolean
+  repeatsDaily: boolean
 }
 
 export type CreateHomeTask = {
   title: string
   meta?: string
   assignee?: string
+  repeatsDaily?: boolean
 }
 
 export type UpdateHomeTask = Partial<Omit<HomeTask, 'id'>>
