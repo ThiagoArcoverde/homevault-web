@@ -1636,12 +1636,14 @@ h1 {
 
 .homevault-task-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 12px 16px;
 }
 
 .homevault-task-pagination {
   display: flex;
+  white-space: nowrap;
   align-items: center;
   gap: 8px;
   color: var(--color-muted);
@@ -1795,17 +1797,216 @@ h1 {
 .homevault-task {
   position: relative;
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   min-height: 92px;
-  padding: 16px;
+  padding: 16px 12px 16px 16px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
   box-shadow: 0 5px 14px var(--color-card-shadow);
-  cursor: pointer;
   transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.homevault-task-toggle {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+}
+
+.homevault-task-actions {
+  display: grid;
+  gap: 4px;
+}
+
+.homevault-task-action {
+  display: grid;
+  width: 30px;
+  height: 28px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--color-muted);
+  background: none;
+  cursor: pointer;
+  transition: box-shadow 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.homevault-task-action:hover {
+  color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.homevault-task-action.is-danger:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+  box-shadow: inset 0 0 0 1px var(--color-danger-soft);
+}
+
+.homevault-task-action:focus-visible,
+.homevault-task-add:focus-visible,
+.homevault-task-form-submit:focus-visible {
+  outline: 3px solid var(--color-yellow);
+  outline-offset: 2px;
+}
+
+.homevault-task-add {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--color-primary);
+  border-radius: 99px;
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: background-color 160ms ease;
+}
+
+.homevault-task-add:hover:not(:disabled) {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary-dark);
+}
+
+.homevault-task-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.homevault-task-repeat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  color: var(--color-primary-light);
+  font-weight: 700;
+}
+
+.homevault-task-form {
+  gap: 16px;
+}
+
+.homevault-task-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.homevault-task-repeat-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+  cursor: pointer;
+}
+
+.homevault-task-repeat-option strong,
+.homevault-task-repeat-option small {
+  display: block;
+}
+
+.homevault-task-repeat-option strong {
+  color: var(--color-ink);
+  font-size: 0.9rem;
+}
+
+.homevault-task-repeat-option small {
+  margin-top: 2px;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+}
+
+.homevault-task-repeat-option input {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.homevault-task-repeat-option input:checked {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.homevault-task-repeat-option input:checked::after {
+  display: block;
+  color: var(--color-on-primary);
+  content: '✓';
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+}
+
+.homevault-task-repeat-option input:focus-visible {
+  outline: 3px solid var(--color-yellow);
+  outline-offset: 2px;
+}
+
+.homevault-task-form-error {
+  padding: 10px 12px;
+  border-left: 4px solid var(--color-danger);
+  border-radius: 8px;
+  color: var(--color-danger-dark);
+  background: var(--color-danger-soft);
+  font-size: 0.88rem;
+}
+
+.homevault-task-form-submit {
+  display: inline-flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.homevault-task-form-submit:hover:not(:disabled) {
+  border-color: var(--color-primary-dark);
+  background: var(--color-primary-dark);
+}
+
+.homevault-task-form-submit:disabled,
+.homevault-shopping-delete-cancel:disabled,
+.homevault-shopping-delete-confirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (max-width: 520px) {
+  .homevault-task-form-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .homevault-task::before {
@@ -2012,7 +2213,6 @@ h1 {
   }
 
   .homevault-task {
-    grid-template-columns: 20px minmax(0, 1fr) auto;
     min-height: 96px;
   }
 
