@@ -1683,6 +1683,93 @@ h1 {
   opacity: 0.5;
 }
 
+.homevault-task-state {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  color: var(--color-muted);
+  background: var(--color-surface-muted);
+}
+
+.homevault-task-state p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.homevault-task-state.is-error {
+  border-color: var(--color-danger);
+  border-left-width: 4px;
+  background: var(--color-danger-soft);
+}
+
+.homevault-task-state-mark {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-on-danger);
+  background: var(--color-danger);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.homevault-task-state-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 2px;
+}
+
+.homevault-task-state-copy strong {
+  color: var(--color-danger-dark);
+  font-size: 1rem;
+}
+
+.homevault-task-state-copy p {
+  color: var(--color-ink);
+}
+
+.homevault-task-state-action {
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--color-on-danger);
+  background: var(--color-danger);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  touch-action: manipulation;
+  transition: background-color 160ms ease;
+}
+
+.homevault-task-state-action:hover {
+  background: var(--color-danger-dark);
+}
+
+.homevault-task-state-action:focus-visible {
+  outline: 3px solid var(--color-yellow);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .homevault-task-state {
+    flex-wrap: wrap;
+  }
+
+  .homevault-task-state-action {
+    width: 100%;
+  }
+}
+
 .homevault-task-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
