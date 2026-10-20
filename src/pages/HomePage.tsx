@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react'
+import { getTasks, updateTask, type HomeTask } from '../api/tasks'
 import { apiConfig } from '../config/api'
-
-type HomeTask = {
-  id: string
-  title: string
-  meta: string
-  assignee: string
-  done: boolean
-}
 
 type CurrentWeather = {
   id: string
@@ -164,65 +157,6 @@ function getCurrentGreeting(): string {
   return 'Boa noite'
 }
 
-const initialTasks: HomeTask[] = [
-  {
-    id: 'trash',
-    title: 'Levar o lixo para fora',
-    meta: 'Hoje, até 20:00',
-    assignee: 'Alex',
-    done: false,
-  },
-  {
-    id: 'plants',
-    title: 'Regar as plantas da varanda',
-    meta: 'Hoje, até 18:00',
-    assignee: 'Rafa',
-    done: true,
-  },
-  {
-    id: 'groceries',
-    title: 'Conferir a lista de compras',
-    meta: 'Sem prazo',
-    assignee: 'Todos',
-    done: false,
-  },
-  {
-    id: 'filter',
-    title: 'Limpar o filtro do ar-condicionado',
-    meta: 'Amanhã',
-    assignee: 'Casa',
-    done: false,
-  },
-  {
-    id: 'kitchen',
-    title: 'Organizar a bancada da cozinha',
-    meta: 'Amanhã',
-    assignee: 'Alex',
-    done: false,
-  },
-  {
-    id: 'mailbox',
-    title: 'Conferir a caixa de correio',
-    meta: 'Sem prazo',
-    assignee: 'Rafa',
-    done: false,
-  },
-  {
-    id: 'laundry',
-    title: 'Recolher as roupas do varal',
-    meta: 'Sábado',
-    assignee: 'Todos',
-    done: false,
-  },
-  {
-    id: 'water',
-    title: 'Verificar o filtro de água',
-    meta: 'Segunda-feira',
-    assignee: 'Casa',
-    done: false,
-  },
-]
-
 function playCompletionSound() {
   if (typeof window.AudioContext === 'undefined') {
     return
@@ -258,7 +192,10 @@ function playCompletionSound() {
 }
 
 function HomePage() {
-  const [tasks, setTasks] = useState(initialTasks)
+  const [tasks, setTasks] = useState<HomeTask[]>([])
+  const [tasksStatus, setTasksStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [taskError, setTaskError] = useState<string | null>(null)
+  const [tasksReloadKey, setTasksReloadKey] = useState(0)
   const [taskPage, setTaskPage] = useState(0)
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
   const [weather, setWeather] = useState<WeatherState>({ status: 'loading', data: null })
@@ -267,11 +204,31 @@ function HomePage() {
 
   const tasksPerPage = 6
   const completedTasks = tasks.filter((task) => task.done).length
-  const completionPercentage = Math.round((completedTasks / tasks.length) * 100)
+  const completionPercentage = tasks.length === 0 ? 0 : Math.round((completedTasks / tasks.length) * 100)
   const totalTaskPages = Math.max(1, Math.ceil(tasks.length / tasksPerPage))
-  const taskStart = taskPage * tasksPerPage + 1
+  const taskStart = tasks.length === 0 ? 0 : taskPage * tasksPerPage + 1
   const taskEnd = Math.min(taskStart + tasksPerPage - 1, tasks.length)
   const visibleTasks = tasks.slice(taskPage * tasksPerPage, taskEnd)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    getTasks(controller.signal)
+      .then((response) => {
+        setTasks(response.items)
+        setTasksStatus('ready')
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return
+        }
+
+        setTaskError(error instanceof Error ? error.message : 'Não foi possível carregar os afazeres.')
+        setTasksStatus('error')
+      })
+
+    return () => controller.abort()
+  }, [tasksReloadKey])
 
   useEffect(() => {
     const dateIntervalId = window.setInterval(() => {
@@ -379,15 +336,33 @@ function HomePage() {
     }
   }, [])
 
+  function retryLoadingTasks() {
+    setTasksStatus('loading')
+    setTaskError(null)
+    setTasksReloadKey((key) => key + 1)
+  }
+
   function toggleTask(taskId: string) {
     const task = tasks.find((currentTask) => currentTask.id === taskId)
-    const willComplete = task !== undefined && !task.done
+    if (task === undefined) {
+      return
+    }
 
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === taskId ? { ...task, done: !task.done } : task,
-      ),
-    )
+    const willComplete = !task.done
+    const setDone = (done: boolean) =>
+      setTasks((currentTasks) =>
+        currentTasks.map((currentTask) =>
+          currentTask.id === taskId ? { ...currentTask, done } : currentTask,
+        ),
+      )
+
+    setTaskError(null)
+    setDone(willComplete)
+    updateTask(taskId, { done: willComplete }).catch((error: unknown) => {
+      setDone(!willComplete)
+      setCompletingTaskId((currentTaskId) => (currentTaskId === taskId ? null : currentTaskId))
+      setTaskError(error instanceof Error ? error.message : 'Não foi possível salvar o afazer.')
+    })
 
     if (willComplete) {
       setCompletingTaskId(taskId)
@@ -544,6 +519,30 @@ function HomePage() {
                 </div>
               </div>
             </div>
+            {tasksStatus === 'loading' && (
+              <div className="homevault-task-state" role="status">
+                <p>Carregando afazeres...</p>
+              </div>
+            )}
+            {taskError && (
+              <div className="homevault-task-state is-error" role="alert">
+                <span className="homevault-task-state-mark" aria-hidden="true">!</span>
+                <div className="homevault-task-state-copy">
+                  <strong>{tasksStatus === 'error' ? 'Não foi possível carregar os afazeres' : 'Algo deu errado'}</strong>
+                  <p>{taskError}</p>
+                </div>
+                {tasksStatus === 'error' && (
+                  <button className="homevault-task-state-action" type="button" onClick={retryLoadingTasks}>
+                    Tentar novamente
+                  </button>
+                )}
+              </div>
+            )}
+            {tasksStatus === 'ready' && tasks.length === 0 && (
+              <div className="homevault-task-state">
+                <p>Nenhum afazer cadastrado.</p>
+              </div>
+            )}
             <div className="homevault-task-list" key={taskPage}>
               {visibleTasks.map((task) => (
                 <label
